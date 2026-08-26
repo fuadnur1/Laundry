@@ -13,16 +13,6 @@ const integer = (name, fallback) => {
   return value;
 };
 
-const boolean = (name, fallback = false) => {
-  const raw = (process.env[name] ?? String(fallback)).toLowerCase();
-
-  if (!['true', 'false'].includes(raw)) {
-    throw new Error(`${name} must be either true or false.`);
-  }
-
-  return raw === 'true';
-};
-
 const required = (name) => {
   const value = process.env[name];
 
@@ -39,13 +29,19 @@ if (!apiPrefix.startsWith('/')) {
   throw new Error('API_PREFIX must start with a forward slash.');
 }
 
+const supabaseUrl = required('SUPABASE_URL');
+
+try {
+  new URL(supabaseUrl);
+} catch {
+  throw new Error('SUPABASE_URL must be a valid URL.');
+}
+
 export const env = Object.freeze({
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: integer('PORT', 5000),
   apiPrefix,
-  databaseUrl: required('DATABASE_URL'),
-  databaseSsl: boolean('DATABASE_SSL'),
-  dbPoolMax: integer('DB_POOL_MAX', 10),
-  dbIdleTimeoutMs: integer('DB_IDLE_TIMEOUT_MS', 30000),
-  dbConnectionTimeoutMs: integer('DB_CONNECTION_TIMEOUT_MS', 5000),
+  supabaseUrl,
+  supabaseSecretKey: required('SUPABASE_SECRET_KEY'),
+  supabaseAnonKey: required('SUPABASE_ANON_KEY'),
 });

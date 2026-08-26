@@ -3,6 +3,6 @@ export const errorHandler = (error, _request, response, _next) => {
 
   response.status(500).json({
     success: false,
-    message: 'An unexpected server error occurred.',
+    message: error.message,
   });
 };

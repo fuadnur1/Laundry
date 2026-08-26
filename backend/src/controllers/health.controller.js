@@ -9,6 +9,7 @@ export const createHealthController = ({ databaseHealthCheck }) => async (_reque
         service: 'laundrry-backend',
         status: 'healthy',
         database: 'connected',
+        provider: 'supabase',
         timestamp: new Date().toISOString(),
       },
     });
@@ -20,6 +21,7 @@ export const createHealthController = ({ databaseHealthCheck }) => async (_reque
         service: 'laundrry-backend',
         status: 'unhealthy',
         database: 'disconnected',
+        provider: 'supabase',
         timestamp: new Date().toISOString(),
       },
     });

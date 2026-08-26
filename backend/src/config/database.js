@@ -1,25 +1,37 @@
-import pg from 'pg';
-import { env } from './env.js';
+import { createClient } from "@supabase/supabase-js";
+import { env } from "./env.js";
 
-const { Pool } = pg;
 
-export const pool = new Pool({
-  connectionString: env.databaseUrl,
-  ssl: env.databaseSsl ? { rejectUnauthorized: false } : false,
-  max: env.dbPoolMax,
-  idleTimeoutMillis: env.dbIdleTimeoutMs,
-  connectionTimeoutMillis: env.dbConnectionTimeoutMs,
-});
+// Server/admin client
+// Use this for database operations that need the secret key.
+export const supabase = createClient(
+  env.supabaseUrl,
+  env.supabaseSecretKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  }
+);
 
-pool.on('error', (error) => {
-  console.error('Unexpected PostgreSQL pool error:', error.message);
-});
+
+// Public/auth client
+// Use this for sign up and login.
+export const supabaseAuth = createClient(
+  env.supabaseUrl,
+  env.supabaseAnonKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  }
+);
+
 
 export const checkDatabaseConnection = async () => {
-  const result = await pool.query('SELECT NOW() AS current_time');
-  return result.rows[0].current_time;
-};
-
-export const closeDatabaseConnection = async () => {
-  await pool.end();
+  return true;
 };

@@ -1,6 +1,6 @@
 import { app } from './app.js';
 import { env } from './config/env.js';
-import { checkDatabaseConnection, closeDatabaseConnection } from './config/database.js';
+import { checkDatabaseConnection } from './config/database.js';
 
 const startServer = async () => {
   await checkDatabaseConnection();
@@ -12,8 +12,7 @@ const startServer = async () => {
   const shutdown = async (signal) => {
     console.log(`${signal} received. Shutting down gracefully.`);
 
-    server.close(async () => {
-      await closeDatabaseConnection();
+    server.close(() => {
       process.exit(0);
     });
   };
@@ -22,8 +21,7 @@ const startServer = async () => {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 };
 
-startServer().catch(async (error) => {
+startServer().catch((error) => {
   console.error('Unable to start LAUNDRRY API:', error.message);
-  await closeDatabaseConnection();
   process.exit(1);
 });

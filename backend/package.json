@@ -8,20 +8,15 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "node --test",
-    "migrate:create": "node --env-file=.env node_modules/node-pg-migrate/bin/node-pg-migrate.js create --migrations-dir database/migrations",
-    "migrate:up": "node --env-file=.env node_modules/node-pg-migrate/bin/node-pg-migrate.js up --migrations-dir database/migrations",
-    "migrate:down": "node --env-file=.env node_modules/node-pg-migrate/bin/node-pg-migrate.js down --migrations-dir database/migrations"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.57.0",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.1",
-    "express": "^5.1.0",
-    "pg": "^8.16.3"
-  },
-  "devDependencies": {
-    "node-pg-migrate": "^8.0.3"
+    "express": "^5.1.0"
   }
 }

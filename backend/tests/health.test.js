@@ -42,7 +42,7 @@ test('unknown endpoints use the standard JSON error response', async () => {
   assert.match(body.message, /Route not found/);
 });
 
-test('health endpoint reports 503 when PostgreSQL is unavailable', async () => {
+test('health endpoint reports 503 when Supabase is unavailable', async () => {
   const unavailableApp = createApp({
     databaseHealthCheck: async () => {
       throw new Error('database unavailable');
