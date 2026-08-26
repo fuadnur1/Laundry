@@ -1,196 +1,481 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
 import api from "../api/axios";
 
 function Order() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const service = location.state?.service;
+  const service =
+    location.state?.service;
 
-  const storedUser = JSON.parse(localStorage.getItem("user"));
+  const storedUser =
+    JSON.parse(
+      localStorage.getItem("user") ||
+        "null"
+    );
 
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] =
+    useState(1);
 
-  const [pickupAddressId, setPickupAddressId] = useState(
-    "33b5bd98-7ca3-4186-856b-1419362caa9e"
+  const [addresses, setAddresses] =
+    useState([]);
+
+  const [
+    pickupAddressId,
+    setPickupAddressId,
+  ] = useState("");
+
+  const [
+    pickupStart,
+    setPickupStart,
+  ] = useState("");
+
+  const [
+    pickupEnd,
+    setPickupEnd,
+  ] = useState("");
+
+  const [
+    customerNote,
+    setCustomerNote,
+  ] = useState("");
+
+  const [
+    loadingAddresses,
+    setLoadingAddresses,
+  ] = useState(true);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  useEffect(() => {
+    const loadAddresses = async () => {
+      if (!storedUser?.id) {
+        setLoadingAddresses(false);
+        return;
+      }
+
+      try {
+        const response =
+          await api.get(
+            `/addresses/${storedUser.id}`
+          );
+
+        const rows =
+          response.data.data ||
+          response.data.addresses ||
+          [];
+
+        setAddresses(rows);
+
+        const defaultAddress =
+          rows.find(
+            (item) =>
+              item.is_default
+          ) || rows[0];
+
+        if (defaultAddress) {
+          setPickupAddressId(
+            defaultAddress.id
+          );
+        }
+      } catch (error) {
+        console.log(
+          error.response?.data ||
+            error.message
+        );
+      } finally {
+        setLoadingAddresses(false);
+      }
+    };
+
+    loadAddresses();
+  }, [storedUser?.id]);
+
+  const price =
+    Number(
+      service?.price ??
+        service?.unit_price ??
+        0
+    );
+
+  const total = useMemo(
+    () => price * quantity,
+    [price, quantity]
   );
-
-  const [pickupStart, setPickupStart] = useState("");
-  const [pickupEnd, setPickupEnd] = useState("");
-  const [customerNote, setCustomerNote] = useState("");
-
-  const [loading, setLoading] = useState(false);
 
   if (!service) {
     return (
-      <div>
-        <h2>Service not found</h2>
+      <main className="page-shell">
+        <div className="shell">
+          <div className="state-card">
+            <h2>
+              Service not found
+            </h2>
 
-        <button onClick={() => navigate("/")}>
-          Back Home
-        </button>
-      </div>
+            <p>
+              Please choose a service again.
+            </p>
+
+            <button
+              className="btn btn-primary"
+              onClick={() =>
+                navigate("/")
+              }
+            >
+              Back Home
+            </button>
+          </div>
+        </div>
+      </main>
     );
   }
 
   if (!storedUser) {
     return (
-      <div>
-        <h2>Please login before placing an order.</h2>
+      <main className="page-shell">
+        <div className="shell">
+          <div className="state-card">
+            <h2>
+              Please sign in first
+            </h2>
 
-        <button onClick={() => navigate("/login")}>
-          Login
-        </button>
-      </div>
+            <p>
+              You need a customer account
+              before placing an order.
+            </p>
+
+            <button
+              className="btn btn-primary"
+              onClick={() =>
+                navigate("/login")
+              }
+            >
+              Sign In
+            </button>
+          </div>
+        </div>
+      </main>
     );
   }
 
-  const total = service.price * quantity;
+  const handleSubmit =
+    async (e) => {
+      e.preventDefault();
 
-  const handleSubmit = async () => {
-    if (!pickupStart || !pickupEnd) {
-      alert("Please select pickup start and end time.");
-      return;
-    }
+      if (!pickupAddressId) {
+        alert(
+          "Please select a pickup address."
+        );
 
-    try {
-      setLoading(true);
+        return;
+      }
 
-      const orderData = {
-        customer_id: storedUser.id,
+      if (
+        !pickupStart ||
+        !pickupEnd
+      ) {
+        alert(
+          "Please select pickup start and end time."
+        );
 
-        partner_id: service.provider.id,
+        return;
+      }
 
-        pickup_address_id: pickupAddressId,
+      if (
+        new Date(pickupEnd) <=
+        new Date(pickupStart)
+      ) {
+        alert(
+          "Pickup end time must be later than pickup start time."
+        );
 
-        return_address_id: pickupAddressId,
+        return;
+      }
 
-        pickup_slot_start: new Date(pickupStart).toISOString(),
+      try {
+        setLoading(true);
 
-        pickup_slot_end: new Date(pickupEnd).toISOString(),
+        const orderData = {
+          customer_id:
+            storedUser.id,
 
-        items: [
-          {
-            service_id: service.id,
-            service_name: service.name,
-            unit_type: service.unitType,
-            quantity: quantity,
-            unit_price: service.price
-          }
-        ],
+          partner_id:
+            service.provider.id,
 
-        customer_note: customerNote
-      };
+          pickup_address_id:
+            pickupAddressId,
 
-      const response = await api.post("/orders", orderData);
+          return_address_id:
+            pickupAddressId,
 
-      console.log(response.data);
+          pickup_slot_start:
+            new Date(
+              pickupStart
+            ).toISOString(),
 
-      alert("Order placed successfully!");
+          pickup_slot_end:
+            new Date(
+              pickupEnd
+            ).toISOString(),
 
-      navigate("/");
+          items: [
+            {
+              service_id:
+                service.id,
 
-    } catch (error) {
-      console.log(
-        error.response?.data || error.message
-      );
+              service_name:
+                service.name,
 
-      alert(
-        error.response?.data?.message ||
-        "Order creation failed"
-      );
+              unit_type:
+                service.unitType ||
+                service.unit_type ||
+                "ITEM",
 
-    } finally {
-      setLoading(false);
-    }
-  };
+              quantity,
+
+              unit_price:
+                price,
+            },
+          ],
+
+          customer_note:
+            customerNote,
+        };
+
+        await api.post(
+          "/orders",
+          orderData
+        );
+
+        alert(
+          "Order placed successfully!"
+        );
+
+        navigate("/orders");
+      } catch (error) {
+        console.log(
+          error.response?.data ||
+            error.message
+        );
+
+        alert(
+          error.response?.data?.message ||
+            "Order creation failed"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
   return (
-    <div style={{ padding: "30px" }}>
+    <main className="page-shell">
+      <div className="shell order-layout">
+        <section>
+          <span className="eyebrow">
+            CHECKOUT
+          </span>
 
-      <h1>Place Order</h1>
+          <h1 className="page-title">
+            Place your order
+          </h1>
 
-      <h2>{service.name}</h2>
+          <p className="page-subtitle">
+            Confirm your quantity,
+            pickup address, and pickup
+            time.
+          </p>
 
-      <p>
-        Provider: {service.provider.businessName}
-      </p>
+          <form
+            className="checkout-card form-stack"
+            onSubmit={handleSubmit}
+          >
+            <label>
+              Quantity
 
-      <p>
-        Price: {service.price} BDT per item
-      </p>
+              <input
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(e) =>
+                  setQuantity(
+                    Math.max(
+                      1,
+                      Number(
+                        e.target.value
+                      ) || 1
+                    )
+                  )
+                }
+              />
+            </label>
 
-      <div>
-        <label>Quantity: </label>
+            <label>
+              Pickup address
 
-        <input
-          type="number"
-          min="1"
-          value={quantity}
-          onChange={(e) =>
-            setQuantity(
-              Math.max(1, Number(e.target.value))
-            )
-          }
-        />
+              <select
+                value={pickupAddressId}
+                onChange={(e) =>
+                  setPickupAddressId(
+                    e.target.value
+                  )
+                }
+                disabled={
+                  loadingAddresses ||
+                  addresses.length === 0
+                }
+              >
+                {loadingAddresses ? (
+                  <option>
+                    Loading addresses...
+                  </option>
+                ) : addresses.length ===
+                  0 ? (
+                  <option value="">
+                    No saved address found
+                  </option>
+                ) : (
+                  addresses.map(
+                    (address) => (
+                      <option
+                        key={address.id}
+                        value={address.id}
+                      >
+                        {[
+                          address.address_line1,
+                          address.address_line2,
+                          address.area,
+                          address.city,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </option>
+                    )
+                  )
+                )}
+              </select>
+            </label>
+
+            <label>
+              Pickup start
+
+              <input
+                type="datetime-local"
+                value={pickupStart}
+                onChange={(e) =>
+                  setPickupStart(
+                    e.target.value
+                  )
+                }
+                required
+              />
+            </label>
+
+            <label>
+              Pickup end
+
+              <input
+                type="datetime-local"
+                value={pickupEnd}
+                onChange={(e) =>
+                  setPickupEnd(
+                    e.target.value
+                  )
+                }
+                required
+              />
+            </label>
+
+            <label>
+              Special instructions
+
+              <textarea
+                rows="4"
+                placeholder="Example: Please handle white shirts carefully."
+                value={customerNote}
+                onChange={(e) =>
+                  setCustomerNote(
+                    e.target.value
+                  )
+                }
+              />
+            </label>
+
+            <button
+              className="btn btn-primary btn-full"
+              type="submit"
+              disabled={loading}
+            >
+              {loading
+                ? "Placing order..."
+                : "Place Order"}
+            </button>
+          </form>
+        </section>
+
+        <aside className="summary-card">
+          <span className="eyebrow">
+            ORDER SUMMARY
+          </span>
+
+          <h2>
+            {service.name}
+          </h2>
+
+          <div className="summary-row">
+            <span>
+              Provider
+            </span>
+
+            <strong>
+              {service.provider
+                ?.businessName ||
+                "Laundry Partner"}
+            </strong>
+          </div>
+
+          <div className="summary-row">
+            <span>
+              Unit price
+            </span>
+
+            <strong>
+              ৳{price.toFixed(0)}
+            </strong>
+          </div>
+
+          <div className="summary-row">
+            <span>
+              Quantity
+            </span>
+
+            <strong>
+              {quantity}
+            </strong>
+          </div>
+
+          <div className="summary-total">
+            <span>
+              Total
+            </span>
+
+            <strong>
+              ৳{total.toFixed(0)}
+            </strong>
+          </div>
+        </aside>
       </div>
-
-      <br />
-
-      <div>
-        <label>Pickup Start: </label>
-
-        <input
-          type="datetime-local"
-          value={pickupStart}
-          onChange={(e) =>
-            setPickupStart(e.target.value)
-          }
-        />
-      </div>
-
-      <br />
-
-      <div>
-        <label>Pickup End: </label>
-
-        <input
-          type="datetime-local"
-          value={pickupEnd}
-          onChange={(e) =>
-            setPickupEnd(e.target.value)
-          }
-        />
-      </div>
-
-      <br />
-
-      <div>
-        <label>Special Note: </label>
-
-        <input
-          type="text"
-          placeholder="Handle carefully"
-          value={customerNote}
-          onChange={(e) =>
-            setCustomerNote(e.target.value)
-          }
-        />
-      </div>
-
-      <h3>
-        Total: {total} BDT
-      </h3>
-
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-      >
-        {loading ? "Placing Order..." : "Place Order"}
-      </button>
-
-    </div>
+    </main>
   );
 }
 

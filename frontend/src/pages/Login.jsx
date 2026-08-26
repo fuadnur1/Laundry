@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
+
 import { loginUser } from "../api/auth";
 
 function Login() {
@@ -7,23 +11,36 @@ function Login() {
 
   const [form, setForm] = useState({
     email: "",
-    password: ""
+    password: "",
   });
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
 
   const handleChange = (e) => {
     setForm({
       ...form,
-      [e.target.name]: e.target.value
+      [e.target.name]:
+        e.target.value,
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      const response = await loginUser(form);
+    setMessage("");
 
-      const data = response.data;
+    try {
+      setLoading(true);
+
+      const response =
+        await loginUser(form);
+
+      const data =
+        response.data;
 
       localStorage.setItem(
         "access_token",
@@ -40,51 +57,116 @@ function Login() {
         JSON.stringify(data.user)
       );
 
-      alert("Login successful");
-
       navigate("/");
 
+      window.location.reload();
     } catch (error) {
       console.log(
-        error.response?.data || error.message
+        error.response?.data ||
+          error.message
       );
 
-      alert(
-        error.response?.data?.message || "Login failed"
+      setMessage(
+        error.response?.data?.message ||
+          "Login failed."
       );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
+    <main className="auth-page">
+      <div className="auth-shell">
+        <section className="auth-info">
+          <span className="eyebrow light">
+            WELCOME BACK
+          </span>
 
-      <h1>Login</h1>
+          <h1>
+            Your laundry is only
+            a few clicks away.
+          </h1>
 
-      <form onSubmit={handleSubmit}>
+          <p>
+            Sign in to browse services,
+            place orders, and manage your
+            laundry from one account.
+          </p>
+        </section>
 
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          value={form.email}
-          onChange={handleChange}
-        />
+        <section className="auth-card">
+          <div className="auth-card-header">
+            <span className="eyebrow">
+              CUSTOMER LOGIN
+            </span>
 
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-        />
+            <h2>
+              Sign in
+            </h2>
 
-        <button type="submit">
-          Login
-        </button>
+            <p>
+              Enter your account details.
+            </p>
+          </div>
 
-      </form>
+          {message && (
+            <div className="form-message error-state">
+              {message}
+            </div>
+          )}
 
-    </div>
+          <form
+            className="form-stack"
+            onSubmit={handleSubmit}
+          >
+            <label>
+              Email address
+
+              <input
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                value={form.email}
+                onChange={handleChange}
+                required
+              />
+            </label>
+
+            <label>
+              Password
+
+              <input
+                name="password"
+                type="password"
+                placeholder="Enter your password"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
+            </label>
+
+            <button
+              className="btn btn-primary btn-full"
+              type="submit"
+              disabled={loading}
+            >
+              {loading
+                ? "Signing in..."
+                : "Sign In"}
+            </button>
+          </form>
+
+          <p className="auth-switch">
+            New to Smart Laundry?{" "}
+
+            <Link to="/register">
+              Create an account
+            </Link>
+          </p>
+        </section>
+      </div>
+    </main>
   );
 }
 
