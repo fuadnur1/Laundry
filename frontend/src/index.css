@@ -1350,3 +1350,94 @@ button {
     padding-top: 38px;
   }
 }
+/* =========================================
+   CHECKOUT - ADDRESS MANAGEMENT
+========================================= */
+
+.checkout-address-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.add-address-button {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: #1261ff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.add-address-button:hover {
+  text-decoration: underline;
+}
+
+.new-address-card {
+  margin-top: 4px;
+  padding: 24px;
+  border: 1px solid #dfe7f3;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.new-address-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.new-address-heading h3 {
+  margin: 5px 0 0;
+  font-size: 20px;
+  color: #122d63;
+}
+
+.address-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.address-full-width {
+  grid-column: 1 / -1;
+}
+
+.default-address-check {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0;
+  cursor: pointer;
+}
+
+.default-address-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #1261ff;
+}
+
+.default-address-check span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #344563;
+}
+
+@media (max-width: 700px) {
+  .address-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .address-full-width {
+    grid-column: auto;
+  }
+
+  .new-address-card {
+    padding: 18px;
+  }
+}

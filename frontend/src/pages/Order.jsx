@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -15,40 +16,29 @@ function Order() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const service =
-    location.state?.service;
+  const service = location.state?.service;
 
-  const storedUser =
-    JSON.parse(
-      localStorage.getItem("user") ||
-        "null"
-    );
+  const storedUser = JSON.parse(
+    localStorage.getItem("user") || "null"
+  );
 
-  const [quantity, setQuantity] =
-    useState(1);
+  const [quantity, setQuantity] = useState(1);
 
-  const [addresses, setAddresses] =
-    useState([]);
+  const [addresses, setAddresses] = useState([]);
 
   const [
     pickupAddressId,
     setPickupAddressId,
   ] = useState("");
 
-  const [
-    pickupStart,
-    setPickupStart,
-  ] = useState("");
+  const [pickupStart, setPickupStart] =
+    useState("");
 
-  const [
-    pickupEnd,
-    setPickupEnd,
-  ] = useState("");
+  const [pickupEnd, setPickupEnd] =
+    useState("");
 
-  const [
-    customerNote,
-    setCustomerNote,
-  ] = useState("");
+  const [customerNote, setCustomerNote] =
+    useState("");
 
   const [
     loadingAddresses,
@@ -58,18 +48,43 @@ function Order() {
   const [loading, setLoading] =
     useState(false);
 
-  useEffect(() => {
-    const loadAddresses = async () => {
+  const [
+    showAddressForm,
+    setShowAddressForm,
+  ] = useState(false);
+
+  const [
+    savingAddress,
+    setSavingAddress,
+  ] = useState(false);
+
+  const [newAddress, setNewAddress] =
+    useState({
+      label: "Home",
+      address_line: "",
+      area: "",
+      city: "Dhaka",
+      postal_code: "",
+      is_default: false,
+    });
+
+  // =========================================
+  // LOAD SAVED ADDRESSES
+  // =========================================
+
+  const loadAddresses = useCallback(
+    async (selectAddressId = null) => {
       if (!storedUser?.id) {
         setLoadingAddresses(false);
         return;
       }
 
       try {
-        const response =
-          await api.get(
-            `/addresses/${storedUser.id}`
-          );
+        setLoadingAddresses(true);
+
+        const response = await api.get(
+          `/addresses/${storedUser.id}`
+        );
 
         const rows =
           response.data.data ||
@@ -78,16 +93,24 @@ function Order() {
 
         setAddresses(rows);
 
+        if (selectAddressId) {
+          setPickupAddressId(
+            selectAddressId
+          );
+          return;
+        }
+
         const defaultAddress =
           rows.find(
-            (item) =>
-              item.is_default
+            (item) => item.is_default
           ) || rows[0];
 
         if (defaultAddress) {
           setPickupAddressId(
             defaultAddress.id
           );
+        } else {
+          setPickupAddressId("");
         }
       } catch (error) {
         console.log(
@@ -97,31 +120,144 @@ function Order() {
       } finally {
         setLoadingAddresses(false);
       }
-    };
+    },
+    [storedUser?.id]
+  );
 
+  useEffect(() => {
     loadAddresses();
-  }, [storedUser?.id]);
+  }, [loadAddresses]);
 
-  const price =
-    Number(
-      service?.price ??
-        service?.unit_price ??
-        0
-    );
+  // =========================================
+  // PRICE
+  // =========================================
+
+  const price = Number(
+    service?.price ??
+      service?.unit_price ??
+      0
+  );
 
   const total = useMemo(
     () => price * quantity,
     [price, quantity]
   );
 
+  // =========================================
+  // NEW ADDRESS INPUT
+  // =========================================
+
+  const handleAddressChange = (e) => {
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = e.target;
+
+    setNewAddress((current) => ({
+      ...current,
+      [name]:
+        type === "checkbox"
+          ? checked
+          : value,
+    }));
+  };
+
+  // =========================================
+  // SAVE NEW ADDRESS
+  // =========================================
+
+  const handleSaveAddress = async () => {
+    if (!newAddress.address_line.trim()) {
+      alert("Please enter your address.");
+      return;
+    }
+
+    if (!newAddress.area.trim()) {
+      alert("Please enter your area.");
+      return;
+    }
+
+    if (!newAddress.city.trim()) {
+      alert("Please enter your city.");
+      return;
+    }
+
+    try {
+      setSavingAddress(true);
+
+      const response = await api.post(
+        "/addresses",
+        {
+          user_id: storedUser.id,
+
+          label:
+            newAddress.label.trim(),
+
+          address_line:
+            newAddress.address_line.trim(),
+
+          area:
+            newAddress.area.trim(),
+
+          city:
+            newAddress.city.trim(),
+
+          postal_code:
+            newAddress.postal_code.trim(),
+
+          is_default:
+            newAddress.is_default,
+        }
+      );
+
+      const createdAddress =
+        response.data.data;
+
+      setNewAddress({
+        label: "Home",
+        address_line: "",
+        area: "",
+        city: "Dhaka",
+        postal_code: "",
+        is_default: false,
+      });
+
+      setShowAddressForm(false);
+
+      await loadAddresses(
+        createdAddress?.id || null
+      );
+
+      alert(
+        "Address saved successfully!"
+      );
+    } catch (error) {
+      console.log(
+        error.response?.data ||
+          error.message
+      );
+
+      alert(
+        error.response?.data?.message ||
+          "Could not save address."
+      );
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  // =========================================
+  // SERVICE CHECK
+  // =========================================
+
   if (!service) {
     return (
       <main className="page-shell">
         <div className="shell">
           <div className="state-card">
-            <h2>
-              Service not found
-            </h2>
+            <h2>Service not found</h2>
 
             <p>
               Please choose a service again.
@@ -129,9 +265,7 @@ function Order() {
 
             <button
               className="btn btn-primary"
-              onClick={() =>
-                navigate("/")
-              }
+              onClick={() => navigate("/")}
             >
               Back Home
             </button>
@@ -141,14 +275,16 @@ function Order() {
     );
   }
 
+  // =========================================
+  // LOGIN CHECK
+  // =========================================
+
   if (!storedUser) {
     return (
       <main className="page-shell">
         <div className="shell">
           <div className="state-card">
-            <h2>
-              Please sign in first
-            </h2>
+            <h2>Please sign in first</h2>
 
             <p>
               You need a customer account
@@ -169,114 +305,107 @@ function Order() {
     );
   }
 
-  const handleSubmit =
-    async (e) => {
-      e.preventDefault();
+  // =========================================
+  // PLACE ORDER
+  // =========================================
 
-      if (!pickupAddressId) {
-        alert(
-          "Please select a pickup address."
-        );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-        return;
-      }
+    if (!pickupAddressId) {
+      alert(
+        "Please select or add a pickup address."
+      );
+      return;
+    }
 
-      if (
-        !pickupStart ||
-        !pickupEnd
-      ) {
-        alert(
-          "Please select pickup start and end time."
-        );
+    if (!pickupStart || !pickupEnd) {
+      alert(
+        "Please select pickup start and end time."
+      );
+      return;
+    }
 
-        return;
-      }
+    if (
+      new Date(pickupEnd) <=
+      new Date(pickupStart)
+    ) {
+      alert(
+        "Pickup end time must be later than pickup start time."
+      );
+      return;
+    }
 
-      if (
-        new Date(pickupEnd) <=
-        new Date(pickupStart)
-      ) {
-        alert(
-          "Pickup end time must be later than pickup start time."
-        );
+    try {
+      setLoading(true);
 
-        return;
-      }
+      const orderData = {
+        customer_id: storedUser.id,
 
-      try {
-        setLoading(true);
+        partner_id:
+          service.provider.id,
 
-        const orderData = {
-          customer_id:
-            storedUser.id,
+        pickup_address_id:
+          pickupAddressId,
 
-          partner_id:
-            service.provider.id,
+        return_address_id:
+          pickupAddressId,
 
-          pickup_address_id:
-            pickupAddressId,
+        pickup_slot_start:
+          new Date(
+            pickupStart
+          ).toISOString(),
 
-          return_address_id:
-            pickupAddressId,
+        pickup_slot_end:
+          new Date(
+            pickupEnd
+          ).toISOString(),
 
-          pickup_slot_start:
-            new Date(
-              pickupStart
-            ).toISOString(),
+        items: [
+          {
+            service_id: service.id,
 
-          pickup_slot_end:
-            new Date(
-              pickupEnd
-            ).toISOString(),
+            service_name:
+              service.name,
 
-          items: [
-            {
-              service_id:
-                service.id,
+            unit_type:
+              service.unitType ||
+              service.unit_type ||
+              "ITEM",
 
-              service_name:
-                service.name,
+            quantity,
 
-              unit_type:
-                service.unitType ||
-                service.unit_type ||
-                "ITEM",
+            unit_price: price,
+          },
+        ],
 
-              quantity,
+        customer_note: customerNote,
+      };
 
-              unit_price:
-                price,
-            },
-          ],
+      await api.post(
+        "/orders",
+        orderData
+      );
 
-          customer_note:
-            customerNote,
-        };
+      alert(
+        "Order placed successfully!"
+      );
 
-        await api.post(
-          "/orders",
-          orderData
-        );
+      navigate("/orders");
+    } catch (error) {
+      console.log(
+        error.response?.data ||
+          error.message
+      );
 
-        alert(
-          "Order placed successfully!"
-        );
-
-        navigate("/orders");
-      } catch (error) {
-        console.log(
-          error.response?.data ||
-            error.message
-        );
-
-        alert(
-          error.response?.data?.message ||
-            "Order creation failed"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+      alert(
+        error.response?.data?.message ||
+          "Order creation failed"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="page-shell">
@@ -300,6 +429,8 @@ function Order() {
             className="checkout-card form-stack"
             onSubmit={handleSubmit}
           >
+            {/* QUANTITY */}
+
             <label>
               Quantity
 
@@ -320,51 +451,223 @@ function Order() {
               />
             </label>
 
-            <label>
-              Pickup address
+            {/* SAVED ADDRESS */}
 
-              <select
-                value={pickupAddressId}
-                onChange={(e) =>
-                  setPickupAddressId(
-                    e.target.value
+            <div className="checkout-address-section">
+              <label>
+                Pickup address
+
+                <select
+                  value={
+                    pickupAddressId
+                  }
+                  onChange={(e) =>
+                    setPickupAddressId(
+                      e.target.value
+                    )
+                  }
+                  disabled={
+                    loadingAddresses
+                  }
+                >
+                  {loadingAddresses ? (
+                    <option value="">
+                      Loading addresses...
+                    </option>
+                  ) : addresses.length ===
+                    0 ? (
+                    <option value="">
+                      No saved address found
+                    </option>
+                  ) : (
+                    addresses.map(
+                      (address) => (
+                        <option
+                          key={address.id}
+                          value={address.id}
+                        >
+                          {address.is_default
+                            ? "Default - "
+                            : ""}
+
+                          {address.label
+                            ? `${address.label}: `
+                            : ""}
+
+                          {[
+                            address.address_line,
+                            address.area,
+                            address.city,
+                            address.postal_code,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </option>
+                      )
+                    )
+                  )}
+                </select>
+              </label>
+
+              <button
+                type="button"
+                className="add-address-button"
+                onClick={() =>
+                  setShowAddressForm(
+                    (current) =>
+                      !current
                   )
-                }
-                disabled={
-                  loadingAddresses ||
-                  addresses.length === 0
                 }
               >
-                {loadingAddresses ? (
-                  <option>
-                    Loading addresses...
-                  </option>
-                ) : addresses.length ===
-                  0 ? (
-                  <option value="">
-                    No saved address found
-                  </option>
-                ) : (
-                  addresses.map(
-                    (address) => (
-                      <option
-                        key={address.id}
-                        value={address.id}
+                {showAddressForm
+                  ? "Cancel"
+                  : "+ Add New Address"}
+              </button>
+
+              {/* NEW ADDRESS FORM */}
+
+              {showAddressForm && (
+                <div className="new-address-card">
+                  <div className="new-address-heading">
+                    <div>
+                      <span className="eyebrow">
+                        NEW ADDRESS
+                      </span>
+
+                      <h3>
+                        Save a pickup address
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="address-form-grid">
+                    <label>
+                      Label
+
+                      <select
+                        name="label"
+                        value={
+                          newAddress.label
+                        }
+                        onChange={
+                          handleAddressChange
+                        }
                       >
-                        {[
-                          address.address_line1,
-                          address.address_line2,
-                          address.area,
-                          address.city,
-                        ]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </option>
-                    )
-                  )
-                )}
-              </select>
-            </label>
+                        <option value="Home">
+                          Home
+                        </option>
+
+                        <option value="Office">
+                          Office
+                        </option>
+
+                        <option value="Other">
+                          Other
+                        </option>
+                      </select>
+                    </label>
+
+                    <label className="address-full-width">
+                      Full address *
+
+                      <input
+                        type="text"
+                        name="address_line"
+                        placeholder="Example: House 2, Road 1, C Block"
+                        value={
+                          newAddress.address_line
+                        }
+                        onChange={
+                          handleAddressChange
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      Area *
+
+                      <input
+                        type="text"
+                        name="area"
+                        placeholder="Bashundhara R/A"
+                        value={
+                          newAddress.area
+                        }
+                        onChange={
+                          handleAddressChange
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      City *
+
+                      <input
+                        type="text"
+                        name="city"
+                        placeholder="Dhaka"
+                        value={
+                          newAddress.city
+                        }
+                        onChange={
+                          handleAddressChange
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      Postal code
+
+                      <input
+                        type="text"
+                        name="postal_code"
+                        placeholder="1229"
+                        value={
+                          newAddress.postal_code
+                        }
+                        onChange={
+                          handleAddressChange
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  <label className="default-address-check">
+                    <input
+                      type="checkbox"
+                      name="is_default"
+                      checked={
+                        newAddress.is_default
+                      }
+                      onChange={
+                        handleAddressChange
+                      }
+                    />
+
+                    <span>
+                      Make this my default address
+                    </span>
+                  </label>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={
+                      savingAddress
+                    }
+                    onClick={
+                      handleSaveAddress
+                    }
+                  >
+                    {savingAddress
+                      ? "Saving..."
+                      : "Save Address"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* PICKUP START */}
 
             <label>
               Pickup start
@@ -381,6 +684,8 @@ function Order() {
               />
             </label>
 
+            {/* PICKUP END */}
+
             <label>
               Pickup end
 
@@ -395,6 +700,8 @@ function Order() {
                 required
               />
             </label>
+
+            {/* SPECIAL INSTRUCTIONS */}
 
             <label>
               Special instructions
@@ -423,19 +730,17 @@ function Order() {
           </form>
         </section>
 
+        {/* ORDER SUMMARY */}
+
         <aside className="summary-card">
           <span className="eyebrow">
             ORDER SUMMARY
           </span>
 
-          <h2>
-            {service.name}
-          </h2>
+          <h2>{service.name}</h2>
 
           <div className="summary-row">
-            <span>
-              Provider
-            </span>
+            <span>Provider</span>
 
             <strong>
               {service.provider
@@ -445,9 +750,7 @@ function Order() {
           </div>
 
           <div className="summary-row">
-            <span>
-              Unit price
-            </span>
+            <span>Unit price</span>
 
             <strong>
               ৳{price.toFixed(0)}
@@ -455,19 +758,13 @@ function Order() {
           </div>
 
           <div className="summary-row">
-            <span>
-              Quantity
-            </span>
+            <span>Quantity</span>
 
-            <strong>
-              {quantity}
-            </strong>
+            <strong>{quantity}</strong>
           </div>
 
           <div className="summary-total">
-            <span>
-              Total
-            </span>
+            <span>Total</span>
 
             <strong>
               ৳{total.toFixed(0)}

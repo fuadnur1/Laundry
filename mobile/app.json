@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Smart Laundry",
-    "slug": "smart-laundry",
+    "name": "Smart Laundry App",
+    "slug": "smart-laundry-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -24,7 +24,8 @@
 
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "Smart Laundry App"
     },
 
     "plugins": [
